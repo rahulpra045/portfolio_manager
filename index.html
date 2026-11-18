@@ -4615,8 +4615,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 85;
-const APP_VERSION_LABEL = '18 Nov 2026 (7)';
+const APP_BUILD = 86;
+const APP_VERSION_LABEL = '18 Nov 2026 (8)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
@@ -4683,7 +4683,7 @@ async function updStartupCheck(){
 async function exitApplication(){
   let mode = 'main';
   try{ const st = await (await fetch('/api/status',{cache:'no-store'})).json(); mode = st.mode||'main'; }catch(e){}
-  const msg = mode==='main' ? 'Exit the application on this laptop?\n\nOther laptops will not be able to use the app until it is started again here.' : 'Exit the application on this laptop?';
+  const msg = 'Exit the application on this laptop?';
   if(!(await askConfirm(msg,'Exit'))) return;
   try{ await fetch('/api/exit',{method:'POST'}); }catch(e){}
   document.body.innerHTML = '<div style="font-family:system-ui,sans-serif;padding:60px;text-align:center;color:#8a93a6;"><h2 style="color:inherit;">Application closed</h2><p>You can close this window. To use the app again, start Portfolio Review Manager.</p></div>';

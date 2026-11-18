@@ -1,6 +1,6 @@
 {
-  "build": 85,
-  "version": "18 Nov 2026 (7)",
-  "notes": "Updated How this works guide",
-  "sha256": "883b3417ef1765a77c6f40a37c32b566bde46e33f7eed5e975446800d918c372"
+  "build": 86,
+  "version": "18 Nov 2026 (8)",
+  "notes": "Simpler Exit confirmation message",
+  "sha256": "d05e2c06637b537960f1f816c7c13b22c6093c15fa06572f7206690ddb6237f6"
 }
