@@ -1,6 +1,6 @@
 {
-  "build": 80,
-  "version": "18 Nov 2026 (2)",
-  "notes": "Exit application button; the app now closes when its window is closed",
-  "sha256": "97d14679b585f40467b75816aa3b218522a52b15a0e3bc3916aef719a09678f9"
+  "build": 82,
+  "version": "18 Nov 2026 (4)",
+  "notes": "Policy Rules lock; Exit application; one Security PIN for logs and policy",
+  "sha256": "bbcc96a69f4be0d94d09136ebda28e1aaebce9344b15e9634dd9cd885eba703b"
 }

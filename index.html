@@ -417,6 +417,11 @@ select.small-input{width:auto !important;}
     <div class="view" id="view-policy">
       <h1>Policy Rules</h1>
       <div class="subtitle">These tables drive the target-allocation engine for every client review. Changes apply to future reviews.</div>
+      <div id="policyLockBar" class="card" style="display:flex; align-items:center; gap:12px; padding:12px 16px; margin-bottom:12px;">
+        <span id="policyLockText" style="flex:1; font-size:13px;"></span>
+        <button class="btn btn-primary" id="policyUnlockBtn">&#128274; Unlock to edit</button>
+        <button class="btn" id="policyLockBtn" style="display:none;">&#128275; Lock now</button>
+      </div>
       <div class="card">
         <div class="policy-table-title">Risk Profile Policy</div>
         <div class="policy-table-desc">Sets the target Equity/Debt split for each stated risk profile. A client's strategic allocation uses whichever of Risk, Horizon, and Age policy is most conservative.</div>
@@ -487,8 +492,8 @@ select.small-input{width:auto !important;}
           <div class="field"><label>Mobile</label><input id="fs_mobile" type="text"></div>
           <div class="field full"><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;"><input id="fs_autoreview" type="checkbox" style="width:auto;"> Automatic review inputs</label>
             <div class="muted" style="font-size:11px;margin-top:4px;">Ticked: the app works out Current/New Risk Profile, Primary Goal, Goal Status, Liquidity Reserve and Reason Flagged by itself. Untick to choose these yourself from drop-downs on every new review (and supply them as columns when importing from Excel).</div></div>
-          <div class="field"><label>Logs deletion PIN <span id="fs_logpinState" class="muted" style="text-transform:none;"></span></label><input id="fs_logpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4–8 digits (blank = keep current)">
-            <div class="muted" style="font-size:11px;margin-top:4px;">Needed to delete log entries on the Logs screen. This PIN is used for nothing else. Changing an existing PIN asks for the current one.</div></div>
+          <div class="field"><label>Security PIN <span id="fs_logpinState" class="muted" style="text-transform:none;"></span></label><input id="fs_logpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4–8 digits (blank = keep current)">
+            <div class="muted" style="font-size:11px;margin-top:4px;">One PIN for protected actions: deleting log entries on the Logs screen and unlocking Policy Rules for editing. Changing an existing PIN asks for the current one.</div></div>
           <div class="field full"><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;"><input id="fs_logsmenu" type="checkbox" style="width:auto;"> Show Logs in the left menu</label>
             <div class="muted" style="font-size:11px;margin-top:4px;">Untick to hide the Logs screen from the menu. Activity is still recorded in the background, so the log is complete whenever you turn this back on.</div></div>
           <div class="field full"><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;"><input id="fs_panrules" type="checkbox" style="width:auto;"> Enforce PAN rules (format AAAPL1234A and 5th letter = surname initial)</label>
@@ -861,7 +866,7 @@ select.small-input{width:auto !important;}
   </div>
 </div>
 
-<!-- PIN dialog (log deletion) -->
+<!-- PIN dialog -->
 <div class="overlay" id="pinOverlay" style="z-index:3100;">
   <div class="modal" style="max-width:380px;">
     <div class="modal-head"><h2 id="pinTitle">Enter PIN</h2></div>
@@ -1919,8 +1924,8 @@ function askPin(title, msg){
 async function deleteSelectedLogs(){
   const ids = [...selLogs].filter(id=>logsById[id]);
   if(!ids.length) return;
-  if(!firmSettings.logPinHash){ await askConfirm('No Logs deletion PIN is set yet.\n\nGo to Firm Settings, set a "Logs deletion PIN" and save, then try again.', 'OK'); return; }
-  const pin = await askPin('Delete log entries', `Enter the Logs deletion PIN to permanently delete ${ids.length} log entr${ids.length===1?'y':'ies'}.`);
+  if(!firmSettings.logPinHash){ await askConfirm('No Security PIN is set yet.\n\nGo to Firm Settings, set a "Security PIN" and save, then try again.', 'OK'); return; }
+  const pin = await askPin('Delete log entries', `Enter the Security PIN to permanently delete ${ids.length} log entr${ids.length===1?'y':'ies'}.`);
   if(pin==null) return;
   if(pinHash(pin.trim())!==firmSettings.logPinHash){ toast('Incorrect PIN — nothing was deleted.'); logEvent('Failed','Logs','Log deletion attempt','Incorrect PIN entered for deleting '+ids.length+' entries'); return; }
   for(const id of ids){
@@ -4562,8 +4567,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 80;
-const APP_VERSION_LABEL = '18 Nov 2026 (2)';
+const APP_BUILD = 82;
+const APP_VERSION_LABEL = '18 Nov 2026 (4)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
@@ -4648,7 +4653,7 @@ function startDesktopLifecycle(){
 /* ---------------- policy view ---------------- */
 
 
-function renderPolicyView(){
+function renderPolicyViewCore(){
   document.getElementById('policyRiskTbody').innerHTML = policy.risk.map((r,i)=>`
     <tr>
       <td>${esc(r.profile)}</td>
@@ -4679,6 +4684,33 @@ function renderPolicyView(){
       <td>${label}</td>
       <td><input class="small-input" type="number" step="1" value="${Math.round(policy.transition[key]*100)}" data-p="transition" data-f="${key}"></td>
     </tr>`).join('');
+}
+
+
+/* ---------------- Policy Rules lock (Security PIN) ---------------- */
+let policyLocked = true, policyLockTimer = null;
+const POLICY_RELOCK_MS = 5*60*1000;
+function renderPolicyView(){ renderPolicyViewCore(); applyPolicyLock(); }
+function applyPolicyLock(){
+  document.querySelectorAll('#view-policy .policy-table input').forEach(i=>{ i.disabled = policyLocked; });
+  const save = document.getElementById('savePolicyBtn'); if(save) save.style.display = policyLocked ? 'none' : '';
+  document.getElementById('policyUnlockBtn').style.display = policyLocked ? '' : 'none';
+  document.getElementById('policyLockBtn').style.display = policyLocked ? 'none' : '';
+  document.getElementById('policyLockText').innerHTML = policyLocked
+    ? '<strong>&#128274; Locked.</strong> You can view the rules but not change them. Unlock with the PIN set in Firm Settings (the Security PIN also used for deleting logs).'
+    : '<strong>&#128275; Unlocked for editing.</strong> It locks again automatically after 5 minutes or when you leave this screen.';
+}
+function lockPolicy(silent){
+  policyLocked = true; clearTimeout(policyLockTimer); policyLockTimer = null;
+  if(document.getElementById('policyLockBar')){ renderPolicyView(); if(!silent) toast('Policy Rules locked.'); }
+}
+async function unlockPolicy(){
+  if(!firmSettings.logPinHash){ await askConfirm('No PIN is set yet.\n\nGo to Firm Settings, set the "Security PIN" and save, then try again.', 'OK'); return; }
+  const pin = await askPin('Unlock Policy Rules', 'Enter the PIN to edit Policy Rules.');
+  if(pin==null) return;
+  if(pinHash(pin.trim())!==firmSettings.logPinHash){ toast('Incorrect PIN — Policy Rules stay locked.'); logEvent('Failed','Policy Rules','Policy unlock attempt','Incorrect PIN entered','Incorrect PIN entered to unlock Policy Rules'); return; }
+  policyLocked = false; clearTimeout(policyLockTimer); policyLockTimer = setTimeout(()=>lockPolicy(true), POLICY_RELOCK_MS);
+  renderPolicyView(); toast('Policy Rules unlocked.');
 }
 
 function collectPolicyFromForm(){
@@ -4934,6 +4966,7 @@ function switchView(name){
   document.getElementById('view-'+name).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.getAttribute('data-view')===name));
   document.getElementById('sidebar').classList.remove('open');
+  if(name!=='policy' && !policyLocked) lockPolicy(true);
   if(name==='logs') renderLogsView();
 }
 
@@ -5061,11 +5094,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('logDelBtn').addEventListener('click', deleteSelectedLogs);
   document.getElementById('logColumnsBtn').addEventListener('click', e=>{ e.stopPropagation(); const m = document.getElementById('logColumnsMenu'); if(m.classList.contains('open')) m.classList.remove('open'); else { renderLogColumnsMenu(); m.classList.add('open'); } });
   document.getElementById('logTbody').addEventListener('change', e=>{ const id = e.target.getAttribute && e.target.getAttribute('data-logsel'); if(!id) return; if(e.target.checked) selLogs.add(id); else selLogs.delete(id); syncLogSelUI(logsFiltered()); });
+  document.getElementById('policyUnlockBtn').addEventListener('click', unlockPolicy);
+  document.getElementById('policyLockBtn').addEventListener('click', ()=>lockPolicy(false));
   document.getElementById('savePolicyBtn').addEventListener('click', ()=>{
+    if(policyLocked){ toast('Policy Rules are locked — unlock with the PIN first.'); return; }
     const before = JSON.parse(JSON.stringify(policy)); collectPolicyFromForm();
     const ch = Object.keys(policy).filter(k=>JSON.stringify(policy[k])!==JSON.stringify(before[k]));
     if(ch.length) logEvent('Modified','Policy Rules','Policy rules', 'Changed: '+ch.join(', '));
-    savePolicyToDb(); renderClientsView(); });
+    savePolicyToDb(); renderClientsView(); lockPolicy(true); toast('Policy changes saved — Policy Rules locked again.'); });
   document.getElementById('saveFirmSettingsBtn').addEventListener('click', async ()=>{
     const before = {...firmSettings};
     const np = document.getElementById('fs_logpin').value.trim();
@@ -5073,14 +5109,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(np){
       if(!/^\d{4,8}$/.test(np)){ toast('The PIN must be 4 to 8 digits.'); return; }
       if(firmSettings.logPinHash){
-        const cur = await askPin('Change PIN','Enter the current Logs deletion PIN to change it.');
+        const cur = await askPin('Change PIN','Enter the current Security PIN to change it.');
         if(cur==null) return;
         if(pinHash(cur.trim())!==firmSettings.logPinHash){ toast('Current PIN is incorrect — nothing was saved.'); return; }
       }
       newHash = pinHash(np);
     }
     collectFirmSettingsFromForm(); firmSettings.logPinHash = newHash;
-    if(newHash!==(before.logPinHash||'')) logEvent('Modified','Firm Settings','Logs deletion PIN', before.logPinHash ? 'PIN changed' : 'PIN set');
+    if(newHash!==(before.logPinHash||'')) logEvent('Modified','Firm Settings','Security PIN', before.logPinHash ? 'PIN changed' : 'PIN set');
     renderFirmSettingsView();
     const lab = {name:'Firm name', arn:'ARN', cin:'CIN', address:'Address', email:'Email', mobile:'Mobile', panRules:'PAN rules on', autoReview:'Automatic review inputs', logsMenu:'Logs menu shown'};
     const d = diffText(before, firmSettings, lab); if(d) logEvent('Modified','Firm Settings','Firm settings', d);
