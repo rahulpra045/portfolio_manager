@@ -1,6 +1,6 @@
 {
-  "build": 84,
-  "version": "18 Nov 2026 (6)",
-  "notes": "PIN boxes no longer trigger the browser's save-password prompt; number boxes match the theme",
-  "sha256": "1ce309b4b1b251d476d669baf85a923ff01422aa54c93b4232bf032ff59cbdfe"
+  "build": 85,
+  "version": "18 Nov 2026 (7)",
+  "notes": "Updated How this works guide",
+  "sha256": "883b3417ef1765a77c6f40a37c32b566bde46e33f7eed5e975446800d918c372"
 }

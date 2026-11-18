@@ -570,7 +570,7 @@ select.small-input{width:auto !important;}
 
     <div class="view" id="view-help">
       <h1>How this works</h1>
-      <div class="subtitle">A walk-through of the screens and how to add clients, run reviews and choose funds.</div>
+      <div class="subtitle">A walk-through of the screens: adding clients, running and importing reviews, choosing funds, and keeping the data safe.</div>
       <style>
         .help-card h2{font-size:16px; margin:22px 0 6px;}
         .help-card h2:first-child{margin-top:0;}
@@ -583,14 +583,16 @@ select.small-input{width:auto !important;}
 
         <h2>The screens</h2>
         <ul>
-          <li><strong>Portfolio Reviews</strong> – one row per client showing their latest review. Filter by search, priority, action, "Reviewed as on" date and review month. Click a row to open that client's review history.</li>
-          <li><strong>Client Master</strong> – the roster of clients (name, Client ID, PAN, DOB, address). Reviews are always linked to a client here.</li>
-          <li><strong>Policy Rules</strong> – the risk, horizon, age and transition tables that drive the target allocation.</li>
+          <li><strong>Portfolio Reviews</strong> – one row per client showing their latest review. Filter by search, priority, action, "Reviewed as on" date and review month. Click a row to open that client's review history. The buttons at the top add a new review or import reviews from Excel.</li>
+          <li><strong>Prepare Reviews</strong> – upload your client list and allocation report as you receive them; the app combines them into a sheet you check before any review is created (see below).</li>
+          <li><strong>Client Master</strong> – the roster of clients (name, Client ID, PAN, DOB, address) with totals at the top (clients, reviewed, not yet reviewed). Reviews are always linked to a client here.</li>
+          <li><strong>Policy Rules</strong> – the risk, horizon, age and transition tables that drive the target allocation. They are <strong>locked</strong> until you unlock them with the Security PIN.</li>
           <li><strong>Fund Master</strong> – the universe of funds that can be suggested.</li>
-          <li><strong>Firm Settings</strong> – letterhead details for PDFs, the <em>PAN rules</em> switch, and Backup &amp; Restore.</li>
+          <li><strong>Firm Settings</strong> – letterhead details for PDFs, the <em>PAN rules</em> switch, <em>Automatic review inputs</em>, the <em>Security PIN</em>, whether the Logs menu is shown, Application updates (desktop app) and Backup &amp; Restore.</li>
+          <li><strong>Logs</strong> – a permanent record of what was added, changed, deleted or imported, with date and time (see below).</li>
         </ul>
 
-        <p>On Portfolio Reviews, Client Master and Fund Master, <strong>click any column heading to sort</strong> by it; click again to reverse the order. An arrow shows the current sort.</p>
+        <p>On Portfolio Reviews, Client Master and Fund Master, <strong>click any column heading to sort</strong> by it; click again to reverse the order. An arrow shows the current sort, and a <strong>Reset sort</strong> button appears while a sort is active. The <strong>✕</strong> at the top of the left menu hides it; the <strong>☰</strong> button brings it back.</p>
 
         <h2>Adding a client</h2>
         <ol>
@@ -599,7 +601,7 @@ select.small-input{width:auto !important;}
           <li>Click <strong>Save Client</strong>. A Client ID or PAN that already belongs to another client is rejected.</li>
         </ol>
         <p>To add many at once, use <strong>Import from Excel</strong> on the same screen and map your columns.</p>
-        <div class="note">PAN rules (format AAAPL1234A and 5th letter = surname initial) can be switched off in Firm Settings. Duplicate Client ID / PAN checks always stay on.</div>
+        <div class="note">PAN rules (format AAAPL1234A and 5th letter = surname initial) can be switched off in Firm Settings. A blank PAN, or "0", is treated as no PAN. <strong>Children under 18</strong> may have no PAN, or share a Client ID / PAN with a parent or sibling — each child is kept as a separate client, recognised by name and date of birth. For adults, a Client ID or PAN that already belongs to someone else is always rejected.</div>
 
         <h2>Running a review</h2>
         <h3>New client + review together</h3>
@@ -614,8 +616,8 @@ select.small-input{width:auto !important;}
           <li>Click <strong>+ New Review</strong>, enter AUM, as-of date and current allocation (pre-filled from the last review's targets), and click <strong>Save Review</strong>.</li>
         </ol>
         
-        <h2>Review inputs you choose</h2>
-        <p>The New Client &amp; Review and New Review windows have a <strong>Manual review inputs</strong> section. All six are required:</p>
+        <h2>Review inputs you choose (only if automatic inputs are off)</h2>
+        <p>This applies only when <strong>Automatic review inputs</strong> is switched <em>off</em> in Firm Settings. When it is on (the default) the app works all of these out itself from the Policy Rules and you do not see this section. When it is off, the New Client &amp; Review and New Review windows have a <strong>Manual review inputs</strong> section and all six are required:</p>
         <ul>
           <li><strong>Current Risk Profile</strong> and <strong>New Risk Profile</strong> – Conservative, Moderate, Aggressive, Very Aggressive. The current profile sets the target allocation; the new profile decides which funds are eligible.</li>
           <li><strong>Primary Goal</strong> – Retirement, Education, Wealth Creation, Other.</li>
@@ -653,6 +655,43 @@ select.small-input{width:auto !important;}
           <li><strong>Export CSV</strong> downloads the current reviews with all fields.</li>
           <li>Tick the checkboxes on Portfolio Reviews, Client Master or Fund Master and click <strong>Delete selected</strong>. On Portfolio Reviews only the shown review of each row is deleted; on Client Master the client and all their reviews are deleted.</li>
           <li><strong>Backup &amp; Restore</strong> in Firm Settings exports or imports everything as one JSON file.</li>
+        </ul>
+
+        <h2>Importing reviews</h2>
+        <ul>
+          <li><strong>Import Reviews from Excel</strong> – one row per review in the app's format. Rows are matched to a client by Client ID or PAN; a client that does not exist is created from the Name and DOB columns. Percentages can be written as 95.4 or 0.954 — the app checks that the current allocation adds up to 100%.</li>
+          <li><strong>Import Old Data</strong> – loads past reviews from your calculated Excel sheet exactly as they are in the file; nothing is recalculated. A client that already has a review for the same AUM month is skipped, so importing the same file twice adds nothing. You can add an optional note that is saved in the Logs.</li>
+          <li>After either import you see how many reviews were added (and how many new clients were created) and a list of skipped rows with the reason for each.</li>
+        </ul>
+
+        <h2>Prepare Reviews (two Excel files)</h2>
+        <ol>
+          <li>Open <strong>Prepare Reviews</strong> and choose the <strong>client list</strong> file (name, PAN, Client ID, DOB, address…) and the <strong>allocation report</strong> file.</li>
+          <li>The <strong>AUM as on</strong> date is read from the report's file name (for example Allocation_Report_31_10_2026). Change it if it is wrong.</li>
+          <li>The app converts the allocation to Equity / Debt / Hybrid: Equity + Sol Oriented + 50% of Others becomes Equity; Debt stays Debt; Hybrid + 50% of Others becomes Hybrid. AUM is converted from rupees to lakh.</li>
+          <li>Check the combined sheet. Where the same name appears more than once, choose the right client from the drop-down (it shows DOB, PAN and Client ID; <em>Suggest by closest last AUM</em> can help). The import stays disabled until every duplicate is resolved.</li>
+          <li>Use <strong>Reject</strong> on any row you do not want (<strong>Restore</strong> brings it back), <strong>Download combined sheet</strong> to keep a copy, or <strong>Reject all</strong> to start again. Nothing is saved until you click <strong>Approve &amp; create reviews</strong>.</li>
+        </ol>
+
+        <h2>Logs</h2>
+        <ul>
+          <li>Every addition, change, deletion and import is recorded with the date and time and a short line saying what happened. Use the filters, the <strong>Columns</strong> menu (the long Details column is hidden by default) and <strong>Export</strong>.</li>
+          <li>Deleting log entries needs the <strong>Security PIN</strong>, and the deletion itself leaves no trace. A wrong PIN attempt is recorded.</li>
+          <li>The Logs menu item can be hidden in Firm Settings; activity is still recorded in the background.</li>
+        </ul>
+
+        <h2>Security PIN and locks</h2>
+        <ul>
+          <li>Set one <strong>Security PIN</strong> (4–8 digits) in Firm Settings. Changing it later asks for the current one.</li>
+          <li>It is needed to <strong>delete log entries</strong> and to <strong>unlock Policy Rules</strong>. Policy Rules lock again after you save, after 5 minutes, when you leave the screen, or when you click <strong>Lock now</strong>.</li>
+          <li>If no PIN has been set, those actions ask you to set one first.</li>
+        </ul>
+
+        <h2>The desktop app</h2>
+        <ul>
+          <li><strong>Exit application</strong> (bottom of the left menu) stops the app. Closing the window with the ✕ does the same after a few seconds. On the main laptop it waits while other laptops are still working.</li>
+          <li><strong>Updates</strong> – an <em>Update available</em> message appears when a newer version is published; click <strong>Update now</strong>. In Firm Settings → Application updates you can also check manually, install an update from a file, or <strong>Roll back</strong> to the previous version. Updates never touch your data.</li>
+          <li>Other laptops connect to the main laptop and follow it, so they always run the same version.</li>
         </ul>
 
         <h2>Shared data</h2>
@@ -4576,8 +4615,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 84;
-const APP_VERSION_LABEL = '18 Nov 2026 (6)';
+const APP_BUILD = 85;
+const APP_VERSION_LABEL = '18 Nov 2026 (7)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
