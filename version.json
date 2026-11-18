@@ -1,6 +1,6 @@
 {
-  "build": 83,
-  "version": "18 Nov 2026 (5)",
-  "notes": "Policy Rules lock with a clear read-only look; Exit application; one Security PIN",
-  "sha256": "afb94eacad84a3649af14d30150a07ef04385c68c410a8cf6b5b500478e5e7d5"
+  "build": 84,
+  "version": "18 Nov 2026 (6)",
+  "notes": "PIN boxes no longer trigger the browser's save-password prompt; number boxes match the theme",
+  "sha256": "1ce309b4b1b251d476d669baf85a923ff01422aa54c93b4232bf032ff59cbdfe"
 }

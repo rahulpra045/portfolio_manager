@@ -17,6 +17,7 @@
 :root:not([data-theme="light"]){ }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
+    color-scheme:dark;
     --bg:#12141b; --panel:#1a1d28; --border:#2b2f3e; --text:#e8eaf2; --muted:#9aa0b4;
     --accent:#6f8cff; --accent-ink:#0c0e14; --accent-soft:#212642;
     --good:#3fd394; --good-soft:#123326;
@@ -25,6 +26,7 @@
   }
 }
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --bg:#12141b; --panel:#1a1d28; --border:#2b2f3e; --text:#e8eaf2; --muted:#9aa0b4;
   --accent:#6f8cff; --accent-ink:#0c0e14; --accent-soft:#212642;
   --good:#3fd394; --good-soft:#123326;
@@ -107,6 +109,11 @@ td{padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top;}
 .sidebar{scrollbar-width:none;}
 /* locked (read-only) look for Policy Rules fields */
 .policy-table input:disabled{background:transparent !important; border:1px dashed var(--border) !important; color:var(--muted) !important; opacity:.75; cursor:not-allowed; box-shadow:none;}
+/* PIN boxes look like password boxes but are not, so Chrome never asks to save them */
+.pin-mask{-webkit-text-security:disc; text-security:disc;}
+/* number boxes: no bright browser spinner arrows */
+input[type=number]{-moz-appearance:textfield; appearance:textfield;}
+input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 .cell-trunc{display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; vertical-align:bottom;}
 .fund-table td{white-space:nowrap;}
 .client-table td{white-space:nowrap;}
@@ -494,7 +501,7 @@ select.small-input{width:auto !important;}
           <div class="field"><label>Mobile</label><input id="fs_mobile" type="text"></div>
           <div class="field full"><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;"><input id="fs_autoreview" type="checkbox" style="width:auto;"> Automatic review inputs</label>
             <div class="muted" style="font-size:11px;margin-top:4px;">Ticked: the app works out Current/New Risk Profile, Primary Goal, Goal Status, Liquidity Reserve and Reason Flagged by itself. Untick to choose these yourself from drop-downs on every new review (and supply them as columns when importing from Excel).</div></div>
-          <div class="field"><label>Security PIN <span id="fs_logpinState" class="muted" style="text-transform:none;"></span></label><input id="fs_logpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4–8 digits (blank = keep current)">
+          <div class="field"><label>Security PIN <span id="fs_logpinState" class="muted" style="text-transform:none;"></span></label><input id="fs_logpin" type="text" class="pin-mask" name="sec-pin-x" data-lpignore="true" data-1p-ignore inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4–8 digits (blank = keep current)">
             <div class="muted" style="font-size:11px;margin-top:4px;">One PIN for protected actions: deleting log entries on the Logs screen and unlocking Policy Rules for editing. Changing an existing PIN asks for the current one.</div></div>
           <div class="field full"><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;"><input id="fs_logsmenu" type="checkbox" style="width:auto;"> Show Logs in the left menu</label>
             <div class="muted" style="font-size:11px;margin-top:4px;">Untick to hide the Logs screen from the menu. Activity is still recorded in the background, so the log is complete whenever you turn this back on.</div></div>
@@ -873,7 +880,7 @@ select.small-input{width:auto !important;}
   <div class="modal" style="max-width:380px;">
     <div class="modal-head"><h2 id="pinTitle">Enter PIN</h2></div>
     <div id="pinMsg" style="font-size:14px; line-height:1.5; margin-bottom:10px;"></div>
-    <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" maxlength="8" style="width:100%; letter-spacing:6px; font-size:18px; text-align:center;">
+    <input type="text" id="pinInput" class="pin-mask" name="sec-pin-entry" data-lpignore="true" data-1p-ignore inputmode="numeric" autocomplete="off" maxlength="8" style="width:100%; letter-spacing:6px; font-size:18px; text-align:center;">
     <div class="modal-actions"><button class="btn" id="pinCancel">Cancel</button><button class="btn btn-danger" id="pinOk">Confirm</button></div>
   </div>
 </div>
@@ -4569,8 +4576,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 83;
-const APP_VERSION_LABEL = '18 Nov 2026 (5)';
+const APP_BUILD = 84;
+const APP_VERSION_LABEL = '18 Nov 2026 (6)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
