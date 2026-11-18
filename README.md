@@ -1,6 +1,6 @@
 # Portfolio Review Manager – Update Files
 
-This repository holds the update files for the Portfolio Review Manager desktop application (Prasad Financial Services Pvt Ltd).
+This repository holds the update files for the Portfolio Review Manager desktop application (Pvt Ltd).
 
 The application checks this repository to see whether a newer version is available. No client data, fund data, PINs or settings are stored here. All of that stays on the firm's own laptops.
 
@@ -27,8 +27,3 @@ Updates never change the firm's data. A **Roll back** button in the application 
 2. Commit the changes to the `main` branch.
 
 The `build` number in `version.json` must be higher than the previous one, and the `sha256` must match the uploaded `index.html`. If they do not match, the application refuses the update and nothing is changed.
-
-## Notes
-
-- This repository is public. Do not upload client data, backups, exported files or any other firm information here.
-- Only the repository owner can change these files.
