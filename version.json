@@ -1,6 +1,6 @@
 {
-  "build": 82,
-  "version": "18 Nov 2026 (4)",
-  "notes": "Policy Rules lock; Exit application; one Security PIN for logs and policy",
-  "sha256": "bbcc96a69f4be0d94d09136ebda28e1aaebce9344b15e9634dd9cd885eba703b"
+  "build": 83,
+  "version": "18 Nov 2026 (5)",
+  "notes": "Policy Rules lock with a clear read-only look; Exit application; one Security PIN",
+  "sha256": "afb94eacad84a3649af14d30150a07ef04385c68c410a8cf6b5b500478e5e7d5"
 }
