@@ -288,6 +288,7 @@ select.small-input{width:auto !important;}
     <div class="nav-item" data-view="firm"><span class="nav-icon">&#127970;</span> Firm Settings</div>
     <div class="nav-item" data-view="logs"><span class="nav-icon">&#128466;</span> Logs</div>
     <div class="nav-item" data-view="help"><span class="nav-icon">&#9432;</span> How this works</div>
+    <div class="nav-item" id="exitAppItem" style="display:none;"><span class="nav-icon">&#9211;</span> Exit application</div>
   </div>
 
   <div class="main">
@@ -4561,8 +4562,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 79;
-const APP_VERSION_LABEL = '18 Nov 2026';
+const APP_BUILD = 80;
+const APP_VERSION_LABEL = '18 Nov 2026 (2)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
@@ -4622,6 +4623,26 @@ async function updStartupCheck(){
   if(!window.PRM_DESKTOP) return;
   const info = await updRefreshCard(false);
   if(info && info.available){ let seen=''; try{ seen = sessionStorage.getItem('updSeen')||''; }catch(e){} if(seen!==String(info.latest.build)){ try{ sessionStorage.setItem('updSeen', String(info.latest.build)); }catch(e){} showUpdatePopup(info); } }
+}
+
+
+/* ---------------- exit application / window close (desktop app only) ---------------- */
+async function exitApplication(){
+  let mode = 'main';
+  try{ const st = await (await fetch('/api/status',{cache:'no-store'})).json(); mode = st.mode||'main'; }catch(e){}
+  const msg = mode==='main' ? 'Exit the application on this laptop?\n\nOther laptops will not be able to use the app until it is started again here.' : 'Exit the application on this laptop?';
+  if(!(await askConfirm(msg,'Exit'))) return;
+  try{ await fetch('/api/exit',{method:'POST'}); }catch(e){}
+  document.body.innerHTML = '<div style="font-family:system-ui,sans-serif;padding:60px;text-align:center;color:#8a93a6;"><h2 style="color:inherit;">Application closed</h2><p>You can close this window. To use the app again, start Portfolio Review Manager.</p></div>';
+  setTimeout(()=>{ try{ window.close(); }catch(e){} }, 400);
+}
+function startDesktopLifecycle(){
+  if(!window.PRM_DESKTOP) return;
+  const item = document.getElementById('exitAppItem'); if(item){ item.style.display=''; item.addEventListener('click', exitApplication); }
+  const ping = ()=>{ try{ fetch('/api/alive',{method:'POST',keepalive:true}).catch(()=>{}); }catch(e){} };
+  ping(); setInterval(ping, 30000);
+  // closing the window (cross button): tell the app so it can quit; a quick reload cancels it
+  window.addEventListener('pagehide', ()=>{ try{ navigator.sendBeacon('/api/closing'); }catch(e){} });
 }
 
 /* ---------------- policy view ---------------- */
@@ -4917,7 +4938,7 @@ function switchView(name){
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click', ()=>switchView(n.getAttribute('data-view'))));
+  document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.addEventListener('click', ()=>switchView(n.getAttribute('data-view'))));
   document.getElementById('menuBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     document.getElementById('sidebar').classList.toggle('open');
@@ -5016,6 +5037,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('reviewImportStep2').style.display = 'none';
   });
   document.getElementById('reviewImportRunBtn').addEventListener('click', runReviewImport);
+  startDesktopLifecycle();
   if(window.PRM_DESKTOP){
     document.getElementById('updCheckBtn').addEventListener('click', async ()=>{ updSetMsg('Checking…'); const info = await updRefreshCard(true); if(info && info.available) showUpdatePopup(info); });
     document.getElementById('updFileBtn').addEventListener('click', ()=>document.getElementById('updFile').click());

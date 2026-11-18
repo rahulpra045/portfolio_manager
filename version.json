@@ -1,6 +1,6 @@
 {
-  "build": 79,
-  "version": "18 Nov 2026",
-  "notes": "Update feature added",
-  "sha256": "514a547639070579c089880deeef2667cce90f265a380b4e8f276a10011f8612"
+  "build": 80,
+  "version": "18 Nov 2026 (2)",
+  "notes": "Exit application button; the app now closes when its window is closed",
+  "sha256": "97d14679b585f40467b75816aa3b218522a52b15a0e3bc3916aef719a09678f9"
 }
