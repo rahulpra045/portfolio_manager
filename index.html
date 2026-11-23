@@ -380,10 +380,12 @@ select.small-input{width:auto !important;}
         <div class="form-grid">
           <div class="field"><label>1. Client list file</label><input type="file" id="twoClientFile" accept=".xlsx,.xls,.csv"></div>
           <div class="field"><label>2. Allocation report file</label><input type="file" id="twoAllocFile" accept=".xlsx,.xls,.csv"></div>
+          <div class="field"><label>3. Birth month — only clients born in this month are prepared</label><select id="twoBirth"><option value="">— Select birth month —</option><option value="all">All months</option><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></div>
           <div class="field"><label>AUM as on (read from the report's file name — change if needed)</label><input type="date" id="twoMonth"></div>
           <div class="field"><label>Note for the log (optional)</label><input type="text" id="twoNote" placeholder="e.g. Importing data of Oct 2026"></div>
         </div>
         <div id="twoErr" style="color:var(--bad); font-size:12.5px; margin-top:8px;"></div>
+        <div id="twoHint" class="muted" style="font-size:12.5px; margin-top:8px;"></div>
       </div>
       <div id="twoPreview" style="display:none;">
         <div id="twoSummary" style="font-size:13px; margin-bottom:10px;"></div>
@@ -667,6 +669,7 @@ select.small-input{width:auto !important;}
         <h2>Prepare Reviews (two Excel files)</h2>
         <ol>
           <li>Open <strong>Prepare Reviews</strong> and choose the <strong>client list</strong> file (name, PAN, Client ID, DOB, address…) and the <strong>allocation report</strong> file.</li>
+          <li>Choose the <strong>birth month</strong>: only clients whose date of birth falls in that month are prepared (pick <em>All months</em> to prepare everyone). Allocation rows of clients born in other months are left out.</li>
           <li>The <strong>AUM as on</strong> date is read from the report's file name (for example Allocation_Report_31_10_2026). Change it if it is wrong.</li>
           <li>The app converts the allocation to Equity / Debt / Hybrid: Equity + Sol Oriented + 50% of Others becomes Equity; Debt stays Debt; Hybrid + 50% of Others becomes Hybrid. AUM is converted from rupees to lakh.</li>
           <li>Check the combined sheet. Where the same name appears more than once, choose the right client from the drop-down (it shows DOB, PAN and Client ID; <em>Suggest by closest last AUM</em> can help). The import stays disabled until every duplicate is resolved.</li>
@@ -4480,8 +4483,14 @@ function twoCands(a){
     const ex = Object.entries(clientsById).filter(([id,c])=>twoNorm(c.name)===n);
     if(ex.length===1){ const [id,c]=ex[0]; list = [{key:'A'+id, name:c.name, pan:c.pan||'', clientId:c.clientId||id, dob:c.dob||'', address:c.address||'', fromApp:true}]; }
   }
+  const full = list.length, sel = twoBirthSel();
+  if(sel>0) list = list.filter(c=>twoMonthOf(c.dob)===sel);
+  list.fullCount = full;
   return list;
 }
+const TWO_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function twoBirthSel(){ const v = document.getElementById('twoBirth').value; return v==='' || v==='all' ? 0 : parseInt(v,10); }   // 0 = all months
+function twoMonthOf(dob){ return /^\d{4}-\d{2}/.test(dob||'') ? parseInt(dob.slice(5,7),10) : 0; }
 function twoLastAum(cand){
   const m = findClientForReviewRow(cand.clientId, cand.pan, cand.name, cand.dob);
   if(!m) return null; const r = latestReviewFor(m[0]); return r && r.aum!=null ? r.aum : null;
@@ -4493,7 +4502,8 @@ function twoBuild(){
   const rows = (two.allocs||[]).map(a=>{
     if(two.rejected.has(a.idx)) return {a, cands:[], needsChoice:false, status:'rejected', problems:['rejected by you']};
     const cands = twoCands(a);
-    const needsChoice = cands.length>1 || counts[twoNorm(a.name)]>1;
+    if(twoBirthSel()>0 && !cands.length && cands.fullCount>0) return {a, cands, needsChoice:false, status:'outofmonth', problems:[]};   // belongs to a client born in another month
+    const needsChoice = cands.length>1 || counts[twoNorm(a.name)]>1 || cands.fullCount>1;
     let cand = null;
     if(needsChoice){ const ch = two.choices[a.idx]; if(ch==='skip') return {a, cands, needsChoice, status:'skip', problems:['skipped by you']}; if(ch) cand = cands.find(c=>c.key===ch)||null; }
     else cand = cands[0]||null;
@@ -4529,12 +4539,20 @@ function twoOptLabel(c, a){
 }
 function twoRender(){
   const prev = document.getElementById('twoPreview'), run = document.getElementById('twoRunBtn');
-  if(!two.clients || !two.allocs){ prev.style.display='none'; run.disabled=true; document.getElementById('twoSuggestBtn').style.display='none'; return; }
-  const rows = twoBuild(); two._rows = rows;
+  const hint = document.getElementById('twoHint');
+  if(!two.clients || !two.allocs || document.getElementById('twoBirth').value===''){
+    prev.style.display='none'; run.disabled=true; document.getElementById('twoSuggestBtn').style.display='none';
+    hint.textContent = (two.clients && two.allocs) ? 'Choose a birth month (or "All months") to see the combined sheet.' : '';
+    return;
+  }
+  hint.textContent = '';
+  const allRows = twoBuild(); const outCount = allRows.filter(r=>r.status==='outofmonth').length;
+  const rows = allRows.filter(r=>r.status!=='outofmonth'); two._rows = rows;
+  const sel = twoBirthSel(), inMonth = sel>0 ? two.clients.filter(c=>twoMonthOf(c.dob)===sel).length : two.clients.length;
   const n = k=>rows.filter(r=>r.status===k).length;
   const newC = rows.filter(r=>r.status==='ok' && !r.match).length, ex = rows.filter(r=>r.status==='ok' && r.match).length;
   document.getElementById('twoSummary').innerHTML = `<strong>${n('ok')} ready</strong> (${newC} new client${newC===1?'':'s'}, ${ex} existing) · <span style="color:${n('choose')?'var(--warn, #d9a441)':'inherit'}">${n('choose')} need your choice</span> · ${n('bad')} with problems · ${n('skip')+n('rejected')} rejected/skipped.
-    <span class="muted">${two.clients.length} in client list, ${two.allocs.length} in allocation report.${n('choose')?' Pick the right client for each duplicate name below.':''}</span>`;
+    <span class="muted">${sel>0?`Birth month ${TWO_MONTHS[sel-1]}: ${inMonth} of ${two.clients.length} clients in the list; ${outCount} allocation row${outCount===1?'':'s'} of other months left out.`:`${two.clients.length} in client list, ${two.allocs.length} in allocation report.`}${n('choose')?' Pick the right client for each duplicate name below.':''}</span>`;
   const f = v=>(v*100).toFixed(2)+'%';
   document.getElementById('twoBody').innerHTML = rows.map((r,i)=>{
     const a = r.a; let client;
@@ -4589,19 +4607,19 @@ async function runTwoImportCore(){
   } finally { hideBanner(); }
   logExtra = bad.length ? `${bad.length} row${bad.length===1?'':'s'} skipped` : '';
   renderClientsView(); renderMasterView();
-  const readCount = (two.allocs||[]).length;
+  const readCount = (two._rows||[]).length;
   twoReset(); switchView('clients');
   document.getElementById('importResultModalBody').innerHTML = `
     <div class="card" style="padding:14px;">
       <strong>${reviews} review(s) added (${newClients} new client${newClients===1?'':'s'} created, ${reviews-newClients} added to existing clients), ${bad.length} skipped.</strong>
-      <div class="muted" style="font-size:12px; margin-top:4px;">${readCount} allocation rows read = ${reviews} added + ${bad.length} skipped.</div>
+      <div class="muted" style="font-size:12px; margin-top:4px;">${readCount} allocation rows in scope = ${reviews} added + ${bad.length} skipped.</div>
       ${bad.length ? `<div class="muted" style="font-size:12px; margin-top:8px; max-height:160px; overflow-y:auto;">${bad.map(r=>esc(`${r.a.name}: ${r.problems.join('; ')}`)).join('<br>')}</div>` : ''}
     </div>`;
   document.getElementById('importResultModalOverlay').classList.add('active');
 }
 function twoReset(){
   two = {clients:null, allocs:null, choices:{}, rejected:new Set()};
-  ['twoClientFile','twoAllocFile','twoMonth','twoNote'].forEach(i=>document.getElementById(i).value='');
+  ['twoClientFile','twoAllocFile','twoMonth','twoNote','twoBirth'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('twoErr').textContent='';
   twoRender();
 }
@@ -4615,8 +4633,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 86;
-const APP_VERSION_LABEL = '18 Nov 2026 (8)';
+const APP_BUILD = 87;
+const APP_VERSION_LABEL = '18 Nov 2026 (9)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
@@ -5131,6 +5149,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('twoClientFile').addEventListener('change', e=>{ if(e.target.files[0]) twoOnFile('clients', e.target.files[0]); });
   document.getElementById('twoAllocFile').addEventListener('change', e=>{ if(e.target.files[0]) twoOnFile('alloc', e.target.files[0]); });
   document.getElementById('twoMonth').addEventListener('change', twoRender);
+  document.getElementById('twoBirth').addEventListener('change', ()=>{ two.choices={}; two.rejected=new Set(); twoRender(); });
   document.getElementById('twoRunBtn').addEventListener('click', runTwoImport);
   document.getElementById('twoSuggestBtn').addEventListener('click', twoSuggest);
   document.getElementById('twoBody').addEventListener('click', e=>{ const b=e.target.closest('[data-twoact]'); if(!b) return; const i=+b.dataset.i; if(b.dataset.twoact==='reject') two.rejected.add(i); else two.rejected.delete(i); twoRender(); });

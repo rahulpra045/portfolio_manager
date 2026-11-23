@@ -1,6 +1,6 @@
 {
-  "build": 86,
-  "version": "18 Nov 2026 (8)",
-  "notes": "Simpler Exit confirmation message",
-  "sha256": "d05e2c06637b537960f1f816c7c13b22c6093c15fa06572f7206690ddb6237f6"
+  "build": 87,
+  "version": "19 Nov 2026",
+  "notes": "Prepare Reviews: prepare only clients born in a chosen month",
+  "sha256": "5b5d6b5b017c9be283369f3a95d0e8b782596816a48e055551893570290452ae"
 }
