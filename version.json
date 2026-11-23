@@ -1,6 +1,6 @@
 {
-  "build": 89,
-  "version": "23 Nov 2026 (2)",
-  "notes": "Allocation difference: negative in red, zero and positive in green",
-  "sha256": "2fcd3f1fc944077c56e2b631f68972853cde6da5ba80ffd5821b621a03d68b1e"
+  "build": 91,
+  "version": "23 Nov 2026 (4)",
+  "notes": "Undo for imports now appears as a bottom-left banner (120 seconds, with a close button).",
+  "sha256": "725460e7777d35f0315b3bf4063a4b67833054ec14cd410bdf92e00c4149937f"
 }
