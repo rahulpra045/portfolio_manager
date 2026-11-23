@@ -1,6 +1,6 @@
 {
-  "build": 87,
-  "version": "19 Nov 2026",
-  "notes": "Prepare Reviews: prepare only clients born in a chosen month",
-  "sha256": "5b5d6b5b017c9be283369f3a95d0e8b782596816a48e055551893570290452ae"
+  "build": 88,
+  "version": "23 Nov 2026",
+  "notes": "Prepare Reviews: one row per client for duplicate names, sortable and frozen headers",
+  "sha256": "996c8ba574c2758c36f124a5f8e481c5f4c4e6ee7961bbe60819118574c64d31"
 }

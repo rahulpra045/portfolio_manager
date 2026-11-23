@@ -114,6 +114,9 @@ td{padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top;}
 /* number boxes: no bright browser spinner arrows */
 input[type=number]{-moz-appearance:textfield; appearance:textfield;}
 input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+/* Prepare Reviews: header row stays visible while the rows scroll */
+#twoTableWrap thead th{position:sticky; top:0; z-index:3; background:var(--panel); box-shadow:inset 0 -1px 0 var(--border);}
+#twoTableWrap select{max-width:420px;}
 .cell-trunc{display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; vertical-align:bottom;}
 .fund-table td{white-space:nowrap;}
 .client-table td{white-space:nowrap;}
@@ -392,11 +395,12 @@ select.small-input{width:auto !important;}
         <div class="toolbar">
           <button class="btn" id="twoSuggestBtn" style="display:none;" title="For duplicate names, picks the client whose last AUM is closest to this report's AUM. Please check the picks.">Suggest by closest last AUM</button>
           <div class="spacer"></div>
+          <button class="btn" data-resetsort="prepare" style="display:none;" title="Clears the column sorting">Reset sort</button>
           <button class="btn" id="twoDownloadBtn">Download combined sheet</button>
           <button class="btn btn-danger" id="twoRejectAllBtn" title="Throw this sheet away and start again">Reject all</button>
           <button class="btn btn-primary" id="twoRunBtn" disabled>Approve &amp; create reviews</button>
         </div>
-        <div class="table-wrap" style="max-height:62vh; overflow:auto;"><table><thead><tr><th>#</th><th>Name</th><th>AUM (₹ Lakh)</th><th>Equity</th><th>Debt</th><th>Hybrid</th><th>Client (from client list)</th><th>Status</th><th></th></tr></thead><tbody id="twoBody"></tbody></table></div>
+        <div class="table-wrap" id="twoTableWrap" style="max-height:62vh; overflow:auto;"><table><thead><tr><th>#</th><th data-sk="prepare" data-sort="name">Name</th><th data-sk="prepare" data-sort="aum">AUM (₹ Lakh)</th><th data-sk="prepare" data-sort="e0">Equity</th><th data-sk="prepare" data-sort="d0">Debt</th><th data-sk="prepare" data-sort="h0">Hybrid</th><th data-sk="prepare" data-sort="client">Client (DOB · PAN · ID)</th><th data-sk="prepare" data-sort="status">Status</th><th></th></tr></thead><tbody id="twoBody"></tbody></table></div>
       </div>
     </div>
 
@@ -672,7 +676,8 @@ select.small-input{width:auto !important;}
           <li>Choose the <strong>birth month</strong>: only clients whose date of birth falls in that month are prepared (pick <em>All months</em> to prepare everyone). Allocation rows of clients born in other months are left out.</li>
           <li>The <strong>AUM as on</strong> date is read from the report's file name (for example Allocation_Report_31_10_2026). Change it if it is wrong.</li>
           <li>The app converts the allocation to Equity / Debt / Hybrid: Equity + Sol Oriented + 50% of Others becomes Equity; Debt stays Debt; Hybrid + 50% of Others becomes Hybrid. AUM is converted from rupees to lakh.</li>
-          <li>Check the combined sheet. Where the same name appears more than once, choose the right client from the drop-down (it shows DOB, PAN and Client ID; <em>Suggest by closest last AUM</em> can help). The import stays disabled until every duplicate is resolved.</li>
+          <li>Check the combined sheet. It has one row per client, showing the client's DOB, PAN and Client ID. Where the same name appears more than once, the row is for the client born in the chosen month and its drop-down lists <em>every</em> allocation row with that name (AUM and Equity / Debt / Hybrid) — choose the right one, or skip the client. <em>Suggest by closest last AUM</em> can help. The import stays disabled until every such row is resolved.</li>
+          <li>Click any column heading to <strong>sort</strong> (<strong>Reset sort</strong> clears it). The heading row stays in view while you scroll.</li>
           <li>Use <strong>Reject</strong> on any row you do not want (<strong>Restore</strong> brings it back), <strong>Download combined sheet</strong> to keep a copy, or <strong>Reject all</strong> to start again. Nothing is saved until you click <strong>Approve &amp; create reviews</strong>.</li>
         </ol>
 
@@ -2406,7 +2411,7 @@ document.addEventListener('click', e=>{
   rerenderSorted(kind);
 });
 function rerenderSorted(kind){
-  if(kind==='reviews') renderClientsView(); else if(kind==='master') renderMasterView(); else if(kind==='logs') renderLogsView(); else renderFundsView();
+  if(kind==='prepare') twoRender(); else if(kind==='reviews') renderClientsView(); else if(kind==='master') renderMasterView(); else if(kind==='logs') renderLogsView(); else renderFundsView();
 }
 document.addEventListener('click', e=>{
   const b = e.target.closest && e.target.closest('[data-resetsort]');
@@ -4495,24 +4500,41 @@ function twoLastAum(cand){
   const m = findClientForReviewRow(cand.clientId, cand.pan, cand.name, cand.dob);
   if(!m) return null; const r = latestReviewFor(m[0]); return r && r.aum!=null ? r.aum : null;
 }
+// One row per client. A name that appears more than once (in the report or in the client list) gets a single row
+// for the client born in the chosen month, with a drop-down listing every allocation row of that name.
+function twoRowName(r){ return r.cand ? r.cand.name : (r.a ? r.a.name : ''); }
+function twoAllocLabel(a, near){ return `₹${a.aum} L · E ${(a.e0*100).toFixed(1)}% · D ${(a.d0*100).toFixed(1)}% · H ${(a.h0*100).toFixed(1)}%${near?' ★ closest to last AUM':''}`; }
 function twoBuild(){
   const month = document.getElementById('twoMonth').value;
-  const seen = new Set(), existing = oldExistingMonths(), usedCand = {};
-  const counts = {}; (two.allocs||[]).filter(a=>!two.rejected.has(a.idx)).forEach(a=>{ const k=twoNorm(a.name); counts[k]=(counts[k]||0)+1; });
-  const rows = (two.allocs||[]).map(a=>{
-    if(two.rejected.has(a.idx)) return {a, cands:[], needsChoice:false, status:'rejected', problems:['rejected by you']};
-    const cands = twoCands(a);
-    if(twoBirthSel()>0 && !cands.length && cands.fullCount>0) return {a, cands, needsChoice:false, status:'outofmonth', problems:[]};   // belongs to a client born in another month
-    const needsChoice = cands.length>1 || counts[twoNorm(a.name)]>1 || cands.fullCount>1;
-    let cand = null;
-    if(needsChoice){ const ch = two.choices[a.idx]; if(ch==='skip') return {a, cands, needsChoice, status:'skip', problems:['skipped by you']}; if(ch) cand = cands.find(c=>c.key===ch)||null; }
-    else cand = cands[0]||null;
-    const r = {a, cands, needsChoice, cand, problems:[], status:'ok'};
-    if(needsChoice && !cand){ r.status='choose'; return r; }
-    if(!cand){ r.status='bad'; r.problems.push('name not found in the client list (or in your existing clients)'); return r; }
+  const seen = new Set(), existing = oldExistingMonths(), usedCand = {}, usedAlloc = {};
+  const units = [];
+  const groups = {}, order = [];
+  (two.allocs||[]).forEach(a=>{ const k = twoNorm(a.name); if(!groups[k]){ groups[k]=[]; order.push(k); } groups[k].push(a); });
+  order.forEach(k=>{
+    const as = groups[k], cands = twoCands(as[0]), full = cands.fullCount;
+    if(twoBirthSel()>0 && !cands.length && full>0){ as.forEach(a=>units.push({id:'U'+a.idx, a, status:'outofmonth', problems:[]})); return; }
+    if(!cands.length){ as.forEach(a=>units.push({id:'U'+a.idx, a, cand:null, status:'bad', problems:['name not found in the client list (or in your existing clients)']})); return; }
+    const dup = as.length>1 || full>1;
+    if(!dup){ units.push({id:'U'+as[0].idx, a:as[0], cand:cands[0], problems:[]}); return; }
+    cands.forEach(c=>units.push({id:'C'+c.key, cand:c, opts:as, problems:[]}));
+  });
+  const rows = units.map(u=>{
+    if(u.status==='outofmonth') return u;
+    if(two.rejected.has(u.id)) return {...u, status:'rejected', problems:['rejected by you']};
+    const r = {...u, needsChoice:!!u.opts, problems:[], status:'ok'};
+    if(u.opts){
+      const ch = two.choices[u.id];
+      if(ch==='skip'){ r.status='skip'; r.problems=['skipped by you']; return r; }
+      r.a = ch!=null && ch!=='' ? u.opts.find(a=>String(a.idx)===String(ch)) : null;
+      if(!r.a){ r.status='choose'; return r; }
+      if(r.a.idx in usedAlloc) r.problems.push('the same allocation row is chosen for two clients — pick different ones or skip one');
+      usedAlloc[r.a.idx] = true;
+    }
+    const a = r.a, cand = r.cand;
+    if(!cand){ r.status='bad'; return r; }
     if(a.rupees<=0) r.problems.push('AUM is zero');
     if(!month) r.problems.push('AUM date missing');
-    if(cand.key in usedCand) r.problems.push('the same client is chosen for two rows — pick different clients or skip one');
+    if(cand.key in usedCand) r.problems.push('the same client appears twice');
     usedCand[cand.key] = true;
     const match = findClientForReviewRow(cand.clientId, cand.pan, cand.name, cand.dob);
     r.match = match;
@@ -4533,10 +4555,12 @@ function twoBuild(){
   });
   return rows;
 }
-function twoOptLabel(c, a){
-  const last = twoLastAum(c);
-  return `${c.dob||'no DOB'} · PAN ${c.pan?('…'+c.pan.slice(-4)):'—'} · ID ${c.clientId||'—'}${last!=null?` · last AUM ${last} L`:''}`;
-}
+const TWO_STATUS_RANK = {ok:1, choose:0, bad:2, skip:3, rejected:4};
+SORT_ACCESSORS.prepare = {
+  name:r=>twoRowName(r).toLowerCase(), aum:r=>r.a?r.a.aum:null, e0:r=>r.a?r.a.e0:null, d0:r=>r.a?r.a.d0:null, h0:r=>r.a?r.a.h0:null,
+  client:r=>r.cand?(r.cand.dob||''):'', status:r=>TWO_STATUS_RANK[r.status]
+};
+sortState.prepare = {key:null, dir:1};
 function twoRender(){
   const prev = document.getElementById('twoPreview'), run = document.getElementById('twoRunBtn');
   const hint = document.getElementById('twoHint');
@@ -4547,39 +4571,44 @@ function twoRender(){
   }
   hint.textContent = '';
   const allRows = twoBuild(); const outCount = allRows.filter(r=>r.status==='outofmonth').length;
-  const rows = allRows.filter(r=>r.status!=='outofmonth'); two._rows = rows;
+  const rows = applySort('prepare', allRows.filter(r=>r.status!=='outofmonth')); two._rows = rows;
   const sel = twoBirthSel(), inMonth = sel>0 ? two.clients.filter(c=>twoMonthOf(c.dob)===sel).length : two.clients.length;
   const n = k=>rows.filter(r=>r.status===k).length;
   const newC = rows.filter(r=>r.status==='ok' && !r.match).length, ex = rows.filter(r=>r.status==='ok' && r.match).length;
   document.getElementById('twoSummary').innerHTML = `<strong>${n('ok')} ready</strong> (${newC} new client${newC===1?'':'s'}, ${ex} existing) · <span style="color:${n('choose')?'var(--warn, #d9a441)':'inherit'}">${n('choose')} need your choice</span> · ${n('bad')} with problems · ${n('skip')+n('rejected')} rejected/skipped.
-    <span class="muted">${sel>0?`Birth month ${TWO_MONTHS[sel-1]}: ${inMonth} of ${two.clients.length} clients in the list; ${outCount} allocation row${outCount===1?'':'s'} of other months left out.`:`${two.clients.length} in client list, ${two.allocs.length} in allocation report.`}${n('choose')?' Pick the right client for each duplicate name below.':''}</span>`;
+    <span class="muted">${sel>0?`Birth month ${TWO_MONTHS[sel-1]}: ${inMonth} of ${two.clients.length} clients in the list; ${outCount} allocation row${outCount===1?'':'s'} of other months left out.`:`${two.clients.length} in client list, ${two.allocs.length} in allocation report.`}${n('choose')?' For names that appear more than once, choose the right allocation for each client below.':''}</span>`;
   const f = v=>(v*100).toFixed(2)+'%';
   document.getElementById('twoBody').innerHTML = rows.map((r,i)=>{
-    const a = r.a; let client;
+    const a = r.a, c = r.cand;
+    let aumCell = a ? String(a.aum) : '<span class="muted">—</span>';
     if(r.needsChoice){
-      const near = (()=>{ let best=null; r.cands.forEach(c=>{ const l=twoLastAum(c); if(l!=null){ const d=Math.abs(l-a.aum); if(!best||d<best.d) best={d,key:c.key}; } }); return best&&best.key; })();
-      client = `<select data-twoalloc="${a.idx}"><option value="">— choose —</option>${r.cands.map(c=>`<option value="${esc(c.key)}" ${two.choices[a.idx]===c.key?'selected':''}>${esc(twoOptLabel(c,a))}${c.key===near?' ★ closest AUM':''}</option>`).join('')}<option value="skip" ${two.choices[a.idx]==='skip'?'selected':''}>Skip this row</option></select>`;
-    } else client = r.cand ? esc(`${r.cand.dob||'no DOB'} · PAN ${r.cand.pan?('…'+r.cand.pan.slice(-4)):'—'} · ID ${r.cand.clientId||'—'}${r.cand.fromApp?' (existing client)':''}`) : '<span class="muted">—</span>';
+      const last = twoLastAum(c); let near = null;
+      if(last!=null) r.opts.forEach(o=>{ const d=Math.abs(o.aum-last); if(near==null || d<near.d) near={d, idx:o.idx}; });
+      const cur = two.choices[r.id];
+      aumCell = `<select data-twounit="${esc(r.id)}" title="Every allocation row with this name"><option value="">— choose allocation —</option>${r.opts.map(o=>`<option value="${o.idx}" ${String(cur)===String(o.idx)?'selected':''}>${esc(twoAllocLabel(o, near&&near.idx===o.idx))}</option>`).join('')}<option value="skip" ${cur==='skip'?'selected':''}>Skip this client</option></select>`;
+    }
+    const client = c ? esc(`${c.dob||'no DOB'} · PAN ${c.pan||'—'} · ID ${c.clientId||'—'}${c.fromApp?' (existing client)':''}`) : '<span class="muted">—</span>';
     const st = r.status==='ok' ? (r.match?'<span class="badge badge-good">Review</span>':'<span class="badge badge-warn">New client + review</span>')
-      : r.status==='choose' ? '<span class="badge badge-warn">Choose client</span>'
+      : r.status==='choose' ? '<span class="badge badge-warn">Choose allocation</span>'
       : r.status==='skip' ? '<span class="badge">Skipped</span>'
       : r.status==='rejected' ? '<span class="badge">Rejected</span>'
       : `<span class="badge badge-bad" title="${esc(r.problems.join('; '))}">Skip</span> <span class="muted" style="font-size:11.5px;">${esc(r.problems.join('; '))}</span>`;
-    const act = r.status==='rejected' ? `<button class="btn" data-twoact="restore" data-i="${a.idx}">Restore</button>` : `<button class="btn btn-danger" data-twoact="reject" data-i="${a.idx}">Reject</button>`;
-    return `<tr${r.status==='rejected'?' style="opacity:.45;"':''}><td>${i+1}</td><td>${esc(a.name)}</td><td>${a.aum}</td><td>${f(a.e0)}</td><td>${f(a.d0)}</td><td>${f(a.h0)}</td><td>${client}</td><td>${st}</td><td>${act}</td></tr>`;
+    const act = r.status==='rejected' ? `<button class="btn" data-twoact="restore" data-i="${esc(r.id)}">Restore</button>` : `<button class="btn btn-danger" data-twoact="reject" data-i="${esc(r.id)}">Reject</button>`;
+    return `<tr${r.status==='rejected'?' style="opacity:.45;"':''}><td>${i+1}</td><td>${esc(twoRowName(r))}</td><td>${aumCell}</td><td>${a?f(a.e0):''}</td><td>${a?f(a.d0):''}</td><td>${a?f(a.h0):''}</td><td>${client}</td><td>${st}</td><td>${act}</td></tr>`;
   }).join('');
   prev.style.display = 'block';
+  updateSortIndicators('prepare');
   document.getElementById('twoSuggestBtn').style.display = n('choose') ? '' : 'none';
   run.disabled = n('choose')>0 || n('ok')===0;
   run.textContent = n('choose')>0 ? `Resolve ${n('choose')} duplicate${n('choose')===1?'':'s'} first` : `Approve & create ${n('ok')} review${n('ok')===1?'':'s'}`;
 }
 function twoSuggest(){
-  const rows = two._rows||[]; const taken = new Set();
-  Object.values(two.choices).forEach(v=>v&&v!=='skip'&&taken.add(v));
+  const rows = (two._rows||[]).filter(r=>r.status==='choose');
+  const taken = new Set(Object.entries(two.choices).filter(([k,v])=>v!=='skip'&&v!=='').map(([k,v])=>String(v)));
   const pairs = [];
-  rows.filter(r=>r.status==='choose').forEach(r=>r.cands.forEach(c=>{ const l=twoLastAum(c); if(l!=null) pairs.push({idx:r.a.idx, key:c.key, d:Math.abs(l-r.a.aum)}); }));
+  rows.forEach(r=>{ const l = twoLastAum(r.cand); if(l!=null) r.opts.forEach(o=>pairs.push({id:r.id, idx:String(o.idx), d:Math.abs(o.aum-l)})); });
   pairs.sort((x,y)=>x.d-y.d);
-  pairs.forEach(p=>{ if(two.choices[p.idx] || taken.has(p.key)) return; two.choices[p.idx]=p.key; taken.add(p.key); });
+  pairs.forEach(p=>{ if(two.choices[p.id] || taken.has(p.idx)) return; two.choices[p.id]=p.idx; taken.add(p.idx); });
   twoRender();
 }
 async function runTwoImport(){ logBegin(); try{ return await runTwoImportCore(); } finally { await logEnd({action:'Imported', record:'Import from 2 Excel files'}, 'Portfolio Reviews'); } }
@@ -4613,7 +4642,7 @@ async function runTwoImportCore(){
     <div class="card" style="padding:14px;">
       <strong>${reviews} review(s) added (${newClients} new client${newClients===1?'':'s'} created, ${reviews-newClients} added to existing clients), ${bad.length} skipped.</strong>
       <div class="muted" style="font-size:12px; margin-top:4px;">${readCount} allocation rows in scope = ${reviews} added + ${bad.length} skipped.</div>
-      ${bad.length ? `<div class="muted" style="font-size:12px; margin-top:8px; max-height:160px; overflow-y:auto;">${bad.map(r=>esc(`${r.a.name}: ${r.problems.join('; ')}`)).join('<br>')}</div>` : ''}
+      ${bad.length ? `<div class="muted" style="font-size:12px; margin-top:8px; max-height:160px; overflow-y:auto;">${bad.map(r=>esc(`${twoRowName(r)}: ${r.problems.join('; ')}`)).join('<br>')}</div>` : ''}
     </div>`;
   document.getElementById('importResultModalOverlay').classList.add('active');
 }
@@ -4626,15 +4655,15 @@ function twoReset(){
 async function twoDownload(){
   if(!two._rows || typeof XLSX==='undefined') return;
   const month = document.getElementById('twoMonth').value;
-  const rows = two._rows.map(r=>({Name:r.a.name, 'Client ID':r.cand?r.cand.clientId:'', PAN:r.cand?r.cand.pan:'', DOB:r.cand?r.cand.dob:'', Address:r.cand?r.cand.address:'', 'AUM (Lakh)':r.a.aum, 'Equity %':+(r.a.e0*100).toFixed(2), 'Debt %':+(r.a.d0*100).toFixed(2), 'Hybrid %':+(r.a.h0*100).toFixed(2), 'AUM as on':month, Status:({ok:r.match?'Review':'New client + review',choose:'Choose client',bad:'Problem: '+r.problems.join('; '),skip:'Skipped',rejected:'Rejected'})[r.status]}));
+  const rows = two._rows.map(r=>({Name:twoRowName(r), 'Client ID':r.cand?r.cand.clientId:'', PAN:r.cand?r.cand.pan:'', DOB:r.cand?r.cand.dob:'', Address:r.cand?r.cand.address:'', 'AUM (Lakh)':r.a?r.a.aum:'', 'Equity %':r.a?+(r.a.e0*100).toFixed(2):'', 'Debt %':r.a?+(r.a.d0*100).toFixed(2):'', 'Hybrid %':r.a?+(r.a.h0*100).toFixed(2):'', 'AUM as on':month, Status:({ok:r.match?'Review':'New client + review',choose:'Choose client',bad:'Problem: '+r.problems.join('; '),skip:'Skipped',rejected:'Rejected'})[r.status]}));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Combined');
   await saveFile(`Combined_Review_Sheet_${month||isoLocal(new Date())}.xlsx`, new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
 }
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 87;
-const APP_VERSION_LABEL = '18 Nov 2026 (9)';
+const APP_BUILD = 88;
+const APP_VERSION_LABEL = '23 Nov 2026';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
@@ -5152,8 +5181,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('twoBirth').addEventListener('change', ()=>{ two.choices={}; two.rejected=new Set(); twoRender(); });
   document.getElementById('twoRunBtn').addEventListener('click', runTwoImport);
   document.getElementById('twoSuggestBtn').addEventListener('click', twoSuggest);
-  document.getElementById('twoBody').addEventListener('click', e=>{ const b=e.target.closest('[data-twoact]'); if(!b) return; const i=+b.dataset.i; if(b.dataset.twoact==='reject') two.rejected.add(i); else two.rejected.delete(i); twoRender(); });
-  document.getElementById('twoBody').addEventListener('change', e=>{ const sel=e.target.closest('[data-twoalloc]'); if(!sel) return; two.choices[sel.dataset.twoalloc] = sel.value; twoRender(); });
+  document.getElementById('twoBody').addEventListener('click', e=>{ const b=e.target.closest('[data-twoact]'); if(!b) return; const i=b.dataset.i; if(b.dataset.twoact==='reject') two.rejected.add(i); else two.rejected.delete(i); twoRender(); });
+  document.getElementById('twoBody').addEventListener('change', e=>{ const sel=e.target.closest('[data-twounit]'); if(!sel) return; two.choices[sel.dataset.twounit] = sel.value; twoRender(); });
 
   ['logSearch','logArea','logAction','logFrom','logTo'].forEach(i=>{ const el=document.getElementById(i); el.addEventListener(i==='logSearch'?'input':'change', ()=>{ logShown=300; renderLogsView(); }); });
   document.getElementById('logMoreBtn').addEventListener('click', ()=>{ logShown+=300; renderLogsView(); });
