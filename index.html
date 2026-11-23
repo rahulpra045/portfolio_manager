@@ -115,6 +115,8 @@ td{padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top;}
 input[type=number]{-moz-appearance:textfield; appearance:textfield;}
 input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 /* Prepare Reviews: header row stays visible while the rows scroll */
+.freeze-wrap{max-height:calc(100vh - 250px); min-height:220px; overflow:auto;}
+.freeze-wrap thead th{position:sticky; top:0; z-index:3; background:var(--panel); box-shadow:inset 0 -1px 0 var(--border);}
 #twoTableWrap thead th{position:sticky; top:0; z-index:3; background:var(--panel); box-shadow:inset 0 -1px 0 var(--border);}
 #twoTableWrap select{max-width:420px;}
 .cell-trunc{display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; vertical-align:bottom;}
@@ -361,7 +363,7 @@ select.small-input{width:auto !important;}
         <button class="btn btn-primary" id="addClientBtn">+ New Client &amp; Review</button>
       </div>
 
-      <div class="table-wrap">
+      <div class="table-wrap freeze-wrap">
         <table>
           <thead>
             <tr>
@@ -419,7 +421,7 @@ select.small-input{width:auto !important;}
         <button class="btn btn-primary" id="addMasterClientBtn">+ Add Client</button>
       </div>
 
-      <div class="table-wrap">
+      <div class="table-wrap freeze-wrap">
         <table class="client-table">
           <thead><tr><th class="sel-col"><input type="checkbox" id="selAllMaster" title="Select all shown"></th><th data-sk="master" data-sort="name">Name</th><th data-sk="master" data-sort="clientId">Client ID</th><th data-sk="master" data-sort="pan">PAN</th><th data-sk="master" data-sort="dob">DOB</th><th data-sk="master" data-sort="address">Address</th><th data-sk="master" data-sort="reviews">Reviews</th><th></th></tr></thead>
           <tbody id="masterTbody"></tbody>
@@ -480,7 +482,7 @@ select.small-input{width:auto !important;}
         <button class="btn btn-primary" id="addFundBtn">+ Add Fund</button>
       </div>
       <div class="fund-count-line" id="fundResultCount">Showing 0 of 0 funds</div>
-      <div class="table-wrap">
+      <div class="table-wrap freeze-wrap">
         <table class="fund-table">
           <thead><tr><th class="sel-col"><input type="checkbox" id="selAllFunds" title="Select all matching (all pages)"></th><th data-sk="funds" data-sort="amc">AMC</th><th data-sk="funds" data-sort="fund">Fund</th><th data-sk="funds" data-sort="class">Class</th><th data-sk="funds" data-sort="cat">Category</th><th data-sk="funds" data-sort="risk">Risk</th><th data-sk="funds" data-sort="horizon">Horizon (yrs)</th><th data-sk="funds" data-sort="ageSuit">Age Suit.</th><th data-sk="funds" data-sort="amcW">AMC Wt.</th><th data-sk="funds" data-sort="catW">Cat. Wt.</th><th data-sk="funds" data-sort="fundW">Fund Wt.</th><th data-sk="funds" data-sort="elig">Eligible</th><th></th></tr></thead>
           <tbody id="fundsTbody"></tbody>
@@ -568,7 +570,7 @@ select.small-input{width:auto !important;}
         <button class="btn btn-danger" id="logDelBtn" style="display:none;"></button>
         <button class="btn" id="logExportBtn">Export to Excel</button>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap freeze-wrap">
         <table class="client-table">
           <thead id="logThead"></thead>
           <tbody id="logTbody"></tbody>
@@ -4711,8 +4713,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 91;
-const APP_VERSION_LABEL = '23 Nov 2026 (4)';
+const APP_BUILD = 92;
+const APP_VERSION_LABEL = '23 Nov 2026 (5)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();

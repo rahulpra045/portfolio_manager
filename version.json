@@ -1,6 +1,6 @@
 {
-  "build": 91,
-  "version": "23 Nov 2026 (4)",
-  "notes": "Undo for imports now appears as a bottom-left banner (120 seconds, with a close button).",
-  "sha256": "725460e7777d35f0315b3bf4063a4b67833054ec14cd410bdf92e00c4149937f"
+  "build": 92,
+  "version": "23 Nov 2026 (5)",
+  "notes": "Table headers stay frozen on Portfolio Reviews, Client Master, Fund Master and Logs",
+  "sha256": "d715511c4a4b9bf30bd38986de0aaf434e71c461c415ab511649c70067864521"
 }
