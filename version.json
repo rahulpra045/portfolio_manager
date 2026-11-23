@@ -1,6 +1,6 @@
 {
-  "build": 88,
-  "version": "23 Nov 2026",
-  "notes": "Prepare Reviews: one row per client for duplicate names, sortable and frozen headers",
-  "sha256": "996c8ba574c2758c36f124a5f8e481c5f4c4e6ee7961bbe60819118574c64d31"
+  "build": 89,
+  "version": "23 Nov 2026 (2)",
+  "notes": "Allocation difference: negative in red, zero and positive in green",
+  "sha256": "2fcd3f1fc944077c56e2b631f68972853cde6da5ba80ffd5821b621a03d68b1e"
 }

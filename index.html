@@ -2712,7 +2712,7 @@ function allocBar(label, current, target, variance){
       <div>${pct(current)}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(target*100)}%;"></div></div>
       <div>${pct(target)}</div>
-      <div style="color:${variance>0.10||variance<-0.10?'var(--bad)':'var(--good)'}; font-weight:700;">${pctSigned(variance)}</div>
+      <div style="color:${Math.round((variance||0)*1000)/10<0?'var(--bad)':'var(--good)'}; font-weight:700;">${pctSigned(variance)}</div>
     </div>`;
 }
 
@@ -4662,8 +4662,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 88;
-const APP_VERSION_LABEL = '23 Nov 2026';
+const APP_BUILD = 89;
+const APP_VERSION_LABEL = '23 Nov 2026 (2)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
