@@ -520,8 +520,9 @@ select.small-input{width:auto !important;}
       </div>
 
       <h1 style="margin-top:28px; font-size:18px;">Review Register</h1>
-      <div class="subtitle">One row for every review in the app (from Excel imports, Prepare Reviews, Old Data or created by hand): Client ID, Client Name, Email, DOB, Review Month (financial session, e.g. 2026-27) and the PDF file name. It is always up to date, and an undone import disappears from it.</div>
-      <div class="card" style="max-width:760px;"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="btn btn-primary" id="regDownloadBtn">Download Review Register (Excel)</button><span class="muted" id="regCount"></span></div></div>
+      <div class="subtitle">One row for every review in the app (from Excel imports, Prepare Reviews, Old Data or created by hand): Client ID, Client Name, Email, DOB, Review Month (financial session, e.g. 2026-27) and the PDF file name. It is also saved automatically after every import (in the review folder for Prepare Reviews), and an undone import disappears from the next copy.</div>
+      <div class="card" style="max-width:760px;"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="btn btn-primary" id="regDownloadBtn">Download Review Register (Excel)</button><span class="muted" id="regCount"></span></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);"><div class="muted" style="font-size:12.5px;margin-bottom:8px;">Email blank for some clients? Choose your client list Excel (the one with Name, Client ID/PAN and Email columns). Emails and mobile numbers are filled in only where they are empty; nothing is overwritten.</div><button class="btn" id="regFillBtn">Fill missing emails from a client list…</button><input type="file" id="regFillFile" accept=".xlsx,.xls,.csv" style="display:none;"> <span class="muted" id="regFillMsg" style="margin-left:8px;"></span></div></div>
 
       <h1 style="margin-top:28px; font-size:18px;">Recent imports</h1>
       <div class="subtitle">Every Excel import can be undone. Undo removes the reviews (and the new clients) that import added.</div>
@@ -700,7 +701,7 @@ select.small-input{width:auto !important;}
 
         <h2>Review Register</h2>
         <ul>
-          <li><strong>Firm Settings → Review Register → Download</strong> gives one Excel file with a row for every review: Client ID, Client Name, Email, DOB, Review Month (financial session such as 2026-27) and PDF File Name. It is rebuilt from the live data each time, so it always includes reviews from Excel imports and Prepare Reviews, and drops anything you undo.</li>
+          <li><strong>Firm Settings → Review Register → Download</strong> gives one Excel file with a row for every review: Client ID, Client Name, Email, DOB, Review Month (financial session such as 2026-27) and PDF File Name. It is rebuilt from the live data each time, so it always includes reviews from Excel imports and Prepare Reviews, and drops anything you undo. A copy is also saved automatically after every import (Prepare Reviews puts it in its <code>review - Month-Year</code> folder).</li>
         </ul>
 
         <h2>Logs</h2>
@@ -951,6 +952,14 @@ select.small-input{width:auto !important;}
     <div id="pinMsg" style="font-size:14px; line-height:1.5; margin-bottom:10px;"></div>
     <input type="text" id="pinInput" class="pin-mask" name="sec-pin-entry" data-lpignore="true" data-1p-ignore inputmode="numeric" autocomplete="off" maxlength="8" style="width:100%; letter-spacing:6px; font-size:18px; text-align:center;">
     <div class="modal-actions"><button class="btn" id="pinCancel">Cancel</button><button class="btn btn-danger" id="pinOk">Confirm</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="reasonOverlay" style="z-index:3000;">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-head"><h2 id="reasonTitle">Why this row is skipped</h2></div>
+    <div id="reasonBody" style="font-size:14px; line-height:1.55;"></div>
+    <div class="modal-actions"><button class="btn btn-primary" id="reasonClose">Close</button></div>
   </div>
 </div>
 
@@ -2717,6 +2726,7 @@ async function saveMasterFromModal(){
     dob,
     createdAt: (editingMasterId && clientsById[editingMasterId] && clientsById[editingMasterId].createdAt) || Date.now()
   };
+  if(editingMasterId && clientsById[editingMasterId]){ const o = clientsById[editingMasterId]; if(o.email) data.email = o.email; if(o.mobile) data.mobile = o.mobile; }
   await saveClient(id, data);
   clientsById[id] = data;
   document.getElementById('masterModalOverlay').classList.remove('active');
@@ -4561,7 +4571,7 @@ function twoBuild(){
       usedAlloc[r.a.idx] = true;
     }
     const a = r.a, cand = r.cand;
-    if(!cand){ r.status='bad'; return r; }
+    if(!cand){ r.status='bad'; r.problems=['name not found in the client list (or in your existing clients)']; return r; }
     if(a.rupees<=0) r.problems.push('AUM is zero');
     if(!month) r.problems.push('AUM date missing');
     if(cand.key in usedCand) r.problems.push('the same client appears twice');
@@ -4574,7 +4584,7 @@ function twoBuild(){
         if(!isValidIndividualPan(cand.pan)) r.problems.push('invalid PAN format — cannot create new client');
         else { const ln = splitFullName(cand.name).last; if(ln && !panSurnameInitialMatches(cand.pan, ln)) r.problems.push(`PAN's 5th character should be "${ln.charAt(0).toUpperCase()}" — cannot create new client`); }
       }
-      if(!r.problems.length) r.newClientData = {name:cand.name, clientId:cand.clientId, pan:cand.pan, address:cand.address, dob:cand.dob};
+      if(!r.problems.length) r.newClientData = {name:cand.name, clientId:cand.clientId, pan:cand.pan, address:cand.address, dob:cand.dob, email:cand.email||'', mobile:cand.mobile||''};
     } else if(month){
       const key = match[0]+'|'+month;
       if(existing.has(key) || seen.has(key)) r.problems.push(`already has a review for ${month} (skipped as a duplicate)`);
@@ -4622,7 +4632,7 @@ function twoRender(){
       : r.status==='choose' ? '<span class="badge badge-warn">Choose allocation</span>'
       : r.status==='skip' ? '<span class="badge">Skipped</span>'
       : r.status==='rejected' ? '<span class="badge">Rejected</span>'
-      : `<span class="badge badge-bad" title="${esc(r.problems.join('; '))}">Skip</span> <span class="muted" style="font-size:11.5px;">${esc(r.problems.join('; '))}</span>`;
+      : `<button type="button" class="badge badge-bad" data-tworeason="${esc(r.id)}" title="Click to see why this row is skipped" style="cursor:pointer;border:none;font:inherit;">Skip &#9432; Reason</button>`;
     const act = r.status==='rejected' ? `<button class="btn" data-twoact="restore" data-i="${esc(r.id)}">Restore</button>` : `<button class="btn btn-danger" data-twoact="reject" data-i="${esc(r.id)}">Reject</button>`;
     return `<tr${r.status==='rejected'?' style="opacity:.45;"':''}><td>${i+1}</td><td>${esc(twoRowName(r))}</td><td>${aumCell}</td><td>${a?f(a.e0):''}</td><td>${a?f(a.d0):''}</td><td>${a?f(a.h0):''}</td><td>${client}</td><td>${st}</td><td>${act}</td></tr>`;
   }).join('');
@@ -4632,6 +4642,17 @@ function twoRender(){
   run.disabled = n('choose')>0 || n('ok')===0;
   run.textContent = n('choose')>0 ? `Resolve ${n('choose')} duplicate${n('choose')===1?'':'s'} first` : `Approve & create ${n('ok')} review${n('ok')===1?'':'s'}`;
 }
+document.addEventListener('click', e=>{
+  const b = e.target.closest && e.target.closest('[data-tworeason]');
+  if(b){
+    const r = (two._rows||[]).find(x=>String(x.id)===b.getAttribute('data-tworeason')); if(!r) return;
+    const probs = (r.problems&&r.problems.length) ? r.problems : ['No reason was recorded for this row.'];
+    document.getElementById('reasonTitle').textContent = twoRowName(r) || 'Skipped row';
+    document.getElementById('reasonBody').innerHTML = '<div class="muted" style="margin-bottom:6px;">This row is skipped because:</div><ul style="margin:0 0 0 18px;padding:0;">'+probs.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><div class="muted" style="margin-top:10px;font-size:12px;"></div>';
+    document.getElementById('reasonOverlay').classList.add('active');
+  }
+  if(e.target && (e.target.id==='reasonClose' || e.target.id==='reasonOverlay')) document.getElementById('reasonOverlay').classList.remove('active');
+});
 function twoSuggest(){
   const rows = (two._rows||[]).filter(r=>r.status==='choose');
   const taken = new Set(Object.entries(two.choices).filter(([k,v])=>v!=='skip'&&v!=='').map(([k,v])=>String(v)));
@@ -4656,8 +4677,11 @@ async function runTwoImportCore(){
       if(!clientId){
         clientId = uid('c');
         const nd = r.newClientData;
-        const data = {name:nd.name, clientId:nd.clientId || generateNumericClientId(), pan:nd.pan, address:nd.address, dob:nd.dob, createdAt:Date.now()};
+        const data = {name:nd.name, clientId:nd.clientId || generateNumericClientId(), pan:nd.pan, address:nd.address, dob:nd.dob, email:nd.email||'', mobile:nd.mobile||'', createdAt:Date.now()};
         await saveClient(clientId, data); clientsById[clientId] = data; batchClient(clientId); newClients++;
+      } else if(r.cand && ((r.cand.email && !(clientsById[clientId].email||'').trim()) || (r.cand.mobile && !(clientsById[clientId].mobile||'').trim()))){
+        const old = clientsById[clientId]; const upd = {...old, email:(old.email||'').trim()||r.cand.email||'', mobile:(old.mobile||'').trim()||r.cand.mobile||''};
+        await saveClient(clientId, upd); clientsById[clientId] = upd;
       }
       batchReview(await createReview(clientId, {aum:r.a.aum, aumMonth:month, e0:r.a.e0, d0:r.a.d0, h0:r.a.h0, l0:0}));
       reviews++;
@@ -4665,6 +4689,7 @@ async function runTwoImportCore(){
       if(i%10===9) await new Promise(res=>setTimeout(res,0));
     }
   } finally { hideBanner(); }
+  regFolder = twoFolderName();
   const bid = await batchEnd();
   logExtra = bad.length ? `${bad.length} row${bad.length===1?'':'s'} skipped` : '';
   renderClientsView(); renderMasterView();
@@ -4683,12 +4708,18 @@ async function runTwoImportCore(){
 
 // After approval: save the prepared data, and the clients of that birth month who had no allocation row, to one Excel file
 // in a folder named "review - <Month>-<Year>".
+function twoFolderName(){
+  const sel = twoBirthSel(), monthName = sel>0 ? TWO_MONTHS[sel-1] : 'All-months';
+  const asOn = document.getElementById('twoMonth').value;
+  const year = (asOn||'').slice(0,4) || String(new Date().getFullYear());
+  return `review - ${monthName}-${year}`;
+}
 async function twoSaveWorkbook(importedRows, visibleRows){
   if(typeof XLSX==='undefined') return;
   const sel = twoBirthSel(), monthName = sel>0 ? TWO_MONTHS[sel-1] : 'All-months';
   const asOn = document.getElementById('twoMonth').value;
   const year = (asOn||'').slice(0,4) || String(new Date().getFullYear());
-  const folder = `review - ${monthName}-${year}`;
+  const folder = twoFolderName();
   const ident = c=>({Name:c.name, 'Client ID':c.clientId||'', PAN:c.pan||'', DOB:c.dob||'', Address:c.address||'', Email:c.email||'', Mobile:c.mobile||''});
   const prepared = importedRows.map(r=>({...ident(r.cand), 'AUM (Lakh)':r.a.aum, 'Equity %':+(r.a.e0*100).toFixed(2), 'Debt %':+(r.a.d0*100).toFixed(2), 'Hybrid %':+(r.a.h0*100).toFixed(2), 'AUM as on':asOn, Result:r.match?'Review added (existing client)':'New client + review added'}));
   // clients of the chosen birth month with no allocation row at all, plus clients you skipped
@@ -4722,8 +4753,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 94;
-const APP_VERSION_LABEL = '28 Nov 2026 (2)';
+const APP_BUILD = 97;
+const APP_VERSION_LABEL = '28 Nov 2026 (5)';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
@@ -4822,6 +4853,7 @@ async function batchEnd(){
   importBatches.unshift(b); importBatches = importBatches.slice(0,15);
   await saveImportBatches(); renderImportHistory();
   showUndoBanner(b);
+  if(b.reviewIds.length) lastRegisterSave = await autoSaveReviewRegister(); else regFolder='';
   return b.id;
 }
 async function loadImportBatches(){
@@ -4836,8 +4868,11 @@ async function loadImportBatches(){
   });
   renderImportHistory();
 }
-function undoBtnHtml(bid){ return ''; }
-let undoBannerTimer=null;
+function undoBtnHtml(bid){
+  const r = lastRegisterSave; if(!bid || !r || !r.ok) return '';
+  return `<div class="muted" style="font-size:12px;margin-top:6px;">Review Register saved: <strong>${esc(r.folder?r.folder+' / ':'')}${esc(r.name)}</strong> (Client ID, Name, Email, DOB, Review Month, PDF File Name).</div>`;
+}
+let undoBannerTimer=null; let lastRegisterSave=null;
 function hideUndoBanner(){ const el=document.getElementById('undoBanner'); if(el) el.remove(); if(undoBannerTimer){ clearInterval(undoBannerTimer); undoBannerTimer=null; } }
 function showUndoBanner(b){
   hideUndoBanner();
@@ -4902,6 +4937,23 @@ function reviewRegisterRows(){
 }
 function isoToDmy(iso){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||''); return m? m[3]+'-'+m[2]+'-'+m[1] : (iso||''); }
 function renderRegisterCount(){ const e=document.getElementById('regCount'); if(e) e.textContent = reviewRegisterRows().length+' review(s) in the register'; }
+function reviewRegisterBlob(){
+  const rows=reviewRegisterRows();
+  const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'Client ID':'','Client Name':'','Email':'','DOB':'','Review Month':'','PDF File Name':''}]);
+  ws['!cols']=[{wch:14},{wch:32},{wch:30},{wch:12},{wch:13},{wch:46}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Review Register');
+  return new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+let regFolder = '';   // set by Prepare Reviews so the register lands in its review folder
+async function autoSaveReviewRegister(){
+  try{
+    if(typeof XLSX==='undefined') return null;
+    const folder = regFolder; regFolder='';
+    const name = folder ? `Review Register - ${folder.replace(/^review - /,'')}.xlsx` : `Review_Register_${isoLocal(new Date())}.xlsx`;
+    const ok = await saveFile(name, reviewRegisterBlob(), folder||undefined);
+    return {ok, name, folder};
+  }catch(e){ console.error('register', e); return null; }
+}
 async function downloadReviewRegister(){
   if(typeof XLSX==='undefined'){ toast('Excel library not loaded.'); return; }
   const rows=reviewRegisterRows();
@@ -4910,7 +4962,29 @@ async function downloadReviewRegister(){
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Review Register');
   await saveFile('Review_Register_'+isoLocal(new Date())+'.xlsx', new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
 }
-document.addEventListener('click', e=>{ if(e.target && e.target.id==='regDownloadBtn') downloadReviewRegister(); });
+document.addEventListener('click', e=>{ if(e.target && e.target.id==='regDownloadBtn') downloadReviewRegister(); if(e.target && e.target.id==='regFillBtn') document.getElementById('regFillFile').click(); });
+document.addEventListener('change', async e=>{
+  if(!e.target || e.target.id!=='regFillFile' || !e.target.files[0]) return;
+  const msg = document.getElementById('regFillMsg'); const f = e.target.files[0]; e.target.value='';
+  try{
+    msg.textContent = 'Reading…';
+    const wb = XLSX.read(await f.arrayBuffer(), {type:'array'});
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:''});
+    const list = twoParseClients(rows);
+    let filled = 0, none = 0;
+    for(const c of list){
+      if(!c.email && !c.mobile) continue;
+      const m = findClientForReviewRow(c.clientId, c.pan, c.name, c.dob);
+      if(!m){ none++; continue; }
+      const old = clientsById[m[0]]; if(!old) continue;
+      const email = (old.email||'').trim() || c.email || '', mobile = (old.mobile||'').trim() || c.mobile || '';
+      if(email===(old.email||'') && mobile===(old.mobile||'')) continue;
+      const upd = {...old, email, mobile}; await saveClient(m[0], upd); clientsById[m[0]] = upd; filled++;
+    }
+    msg.textContent = `Done: ${filled} client${filled===1?'':'s'} updated${none?`, ${none} not found in the app`:''}.`;
+    renderMasterView(); renderRegisterCount();
+  }catch(err){ msg.textContent = 'Could not read that file: '+(err&&err.message||err); }
+});
 
 /* ---------------- policy view ---------------- */
 
