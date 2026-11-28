@@ -1,6 +1,6 @@
 {
-  "build": 93,
-  "version": "28 Nov 2026",
-  "notes": "Review Register: Excel list of every review with PDF file name",
-  "sha256": "3f07116b6d4467f5d5bdbf3ac3cebd7af5e67e12e7279f757b3f9860bd8a75eb"
+  "build": 94,
+  "version": "28 Nov 2026 (2)",
+  "notes": "Enforce PAN rules is off by default",
+  "sha256": "a1955d795db2a586eb99d3e9494ae1a183e98ebc6b8926a6b5464cec34782aa3"
 }
