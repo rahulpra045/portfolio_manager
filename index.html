@@ -519,6 +519,10 @@ select.small-input{width:auto !important;}
         <div class="modal-actions"><button class="btn btn-primary" id="saveFirmSettingsBtn">Save Firm Settings</button></div>
       </div>
 
+      <h1 style="margin-top:28px; font-size:18px;">Review Register</h1>
+      <div class="subtitle">One row for every review in the app (from Excel imports, Prepare Reviews, Old Data or created by hand): Client ID, Client Name, Email, DOB, Review Month (financial session, e.g. 2026-27) and the PDF file name. It is always up to date, and an undone import disappears from it.</div>
+      <div class="card" style="max-width:760px;"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="btn btn-primary" id="regDownloadBtn">Download Review Register (Excel)</button><span class="muted" id="regCount"></span></div></div>
+
       <h1 style="margin-top:28px; font-size:18px;">Recent imports</h1>
       <div class="subtitle">Every Excel import can be undone. Undo removes the reviews (and the new clients) that import added.</div>
       <div class="card" style="max-width:760px;"><div class="table-wrap"><table><thead><tr><th>When</th><th>Import</th><th>Added</th><th></th></tr></thead><tbody id="importHistoryBody"></tbody></table></div></div>
@@ -692,6 +696,11 @@ select.small-input{width:auto !important;}
         <ul>
           <li>Every Excel import (clients, reviews, old data, Prepare Reviews) shows an <strong>Undo</strong> banner at the bottom-left of the screen for 2 minutes (like Gmail); click the &times; to dismiss it.</li>
           <li>You can also undo later from <strong>Firm Settings → Recent imports</strong>. Undo removes the reviews the import added and the clients it created (a client that has other reviews is kept). The undo is recorded in the Logs.</li>
+        </ul>
+
+        <h2>Review Register</h2>
+        <ul>
+          <li><strong>Firm Settings → Review Register → Download</strong> gives one Excel file with a row for every review: Client ID, Client Name, Email, DOB, Review Month (financial session such as 2026-27) and PDF File Name. It is rebuilt from the live data each time, so it always includes reviews from Excel imports and Prepare Reviews, and drops anything you undo.</li>
         </ul>
 
         <h2>Logs</h2>
@@ -4713,8 +4722,8 @@ async function twoDownload(){
 
 
 /* ---------------- application updates (desktop app only) ---------------- */
-const APP_BUILD = 92;
-const APP_VERSION_LABEL = '23 Nov 2026 (5)';
+const APP_BUILD = 93;
+const APP_VERSION_LABEL = '28 Nov 2026';
 async function updCall(path, method, body){
   const r = await fetch(path, {method:method||'GET', cache:'no-store', headers:body?{'Content-Type':'text/html'}:undefined, body});
   return r.json();
@@ -4867,6 +4876,7 @@ async function undoImport(bid){
   toast(`Import undone — ${rd} review${rd===1?'':'s'} and ${cd} client${cd===1?'':'s'} removed${kept?`, ${kept} client${kept===1?'':'s'} kept (they have other reviews)`:''}.`);
 }
 function renderImportHistory(){
+  try{ renderRegisterCount(); }catch(e){}
   const tb = document.getElementById('importHistoryBody'); if(!tb) return;
   tb.innerHTML = importBatches.length ? importBatches.map(b=>`<tr>
       <td>${esc(new Date(b.ts).toLocaleString())}</td><td>${esc(b.source)}</td>
@@ -4875,6 +4885,32 @@ function renderImportHistory(){
     : '<tr><td colspan="4" class="muted">No imports yet.</td></tr>';
 }
 document.addEventListener('click', e=>{ const b = e.target.closest && e.target.closest('[data-undo]'); if(b){ b.disabled = true; undoImport(b.getAttribute('data-undo')).finally(()=>{ b.disabled = false; }); } });
+
+
+/* ---------------- Review Register ---------------- */
+function reviewRegisterRows(){
+  const rows=[];
+  Object.entries(reviewsById).forEach(([id,r])=>{
+    const c=clientsById[r.clientId]; if(!c) return;
+    const done=reviewDoneIso(r);
+    rows.push({_t:r.createdAt||0, _n:(c.name||'').toLowerCase(),
+      'Client ID':c.clientId||'', 'Client Name':c.name||'', 'Email':c.email||'', 'DOB':c.dob?isoToDmy(c.dob):'',
+      'Review Month':sessionLabel(done), 'PDF File Name':reviewPdfBaseName(c,r)+'.pdf'});
+  });
+  rows.sort((a,b)=> a._n<b._n?-1:a._n>b._n?1:a._t-b._t);
+  return rows.map(({_t,_n,...x})=>x);
+}
+function isoToDmy(iso){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||''); return m? m[3]+'-'+m[2]+'-'+m[1] : (iso||''); }
+function renderRegisterCount(){ const e=document.getElementById('regCount'); if(e) e.textContent = reviewRegisterRows().length+' review(s) in the register'; }
+async function downloadReviewRegister(){
+  if(typeof XLSX==='undefined'){ toast('Excel library not loaded.'); return; }
+  const rows=reviewRegisterRows();
+  const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'Client ID':'','Client Name':'','Email':'','DOB':'','Review Month':'','PDF File Name':''}]);
+  ws['!cols']=[{wch:14},{wch:32},{wch:30},{wch:12},{wch:13},{wch:46}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Review Register');
+  await saveFile('Review_Register_'+isoLocal(new Date())+'.xlsx', new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+}
+document.addEventListener('click', e=>{ if(e.target && e.target.id==='regDownloadBtn') downloadReviewRegister(); });
 
 /* ---------------- policy view ---------------- */
 

@@ -1,6 +1,6 @@
 {
-  "build": 92,
-  "version": "23 Nov 2026 (5)",
-  "notes": "Table headers stay frozen on Portfolio Reviews, Client Master, Fund Master and Logs",
-  "sha256": "d715511c4a4b9bf30bd38986de0aaf434e71c461c415ab511649c70067864521"
+  "build": 93,
+  "version": "28 Nov 2026",
+  "notes": "Review Register: Excel list of every review with PDF file name",
+  "sha256": "3f07116b6d4467f5d5bdbf3ac3cebd7af5e67e12e7279f757b3f9860bd8a75eb"
 }
